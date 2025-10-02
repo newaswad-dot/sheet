@@ -1117,6 +1117,450 @@ function moveFromLog(picks, targetSheetName, overrideHex){
   }
 }
 
+/*****************************
+ * أدوات مساعدة للأداة الجماعية
+ *****************************/
+function extractSpreadsheetIdFromUrl_(txt) {
+  const raw = String(txt || '').trim();
+  if (!raw) return '';
+  const idMatch = raw.match(/[-\w]{25,}/);
+  return idMatch ? idMatch[0] : raw;
+}
+
+function parseSheetLink_(raw) {
+  const txt = String(raw || '').trim();
+  if (!txt) return null;
+  let sheetName = '';
+  let link = txt;
+  if (txt.indexOf('|') !== -1) {
+    const parts = txt.split('|');
+    link = String(parts[0] || '').trim();
+    sheetName = String(parts[1] || '').trim();
+  }
+  const spreadsheetId = extractSpreadsheetIdFromUrl_(link);
+  if (!spreadsheetId) return null;
+  return { spreadsheetId: spreadsheetId, sheetName: sheetName };
+}
+
+function buildAdminRowMapFromSheet_(sh) {
+  const map = Object.create(null);
+  if (!sh) return map;
+  const lr = sh.getLastRow();
+  if (lr < 1) return map;
+  const colA = sh.getRange(1,1,lr,1).getDisplayValues();
+  for (let i=0;i<colA.length;i++){
+    const id = String(colA[i][0]||'').trim();
+    if (!id) continue;
+    if (!map[id]) map[id] = [];
+    map[id].push(i+1);
+  }
+  return map;
+}
+
+function round2_(num){
+  return Number((Number(num)||0).toFixed(2));
+}
+
+function computeStatusForCounts_(inAgent, agentRowsCount, inAdmin) {
+  if (inAgent && inAdmin) return agentRowsCount > 1 ? 'سحب وكالة - راتبين' : 'سحب وكالة';
+  if (inAdmin) return 'ادارة';
+  if (inAgent) return agentRowsCount > 1 ? 'راتبين' : 'وكالة';
+  return 'غير موجود';
+}
+
+function loadExternalContextForScope_(scope) {
+  const wantsAll = String(scope||'').toLowerCase() === 'all';
+  if (!wantsAll) return { used:false };
+
+  const links = getExternalSheetLinksFromSettings();
+  const ctx = { used:true };
+
+  const agentLink = parseSheetLink_(links.agentUrl);
+  const adminLink = parseSheetLink_(links.adminUrl);
+
+  if (!agentLink && !adminLink) {
+    throw new Error('⚠️ لم يتم ضبط روابط الشيت الخارجي في Settings (الأعمدة I و J).');
+  }
+
+  if (agentLink) {
+    const ss = SpreadsheetApp.openById(agentLink.spreadsheetId);
+    const sh = agentLink.sheetName ? ss.getSheetByName(agentLink.sheetName) : (ss.getSheets()[0] || null);
+    if (!sh) throw new Error('⚠️ تعذّر فتح ورقة الوكيل في الشيت الخارجي. تأكد من صحة الرابط والاسم.');
+    const lr = sh.getLastRow();
+    let agentIndex = {};
+    if (lr > 0) {
+      const colA = sh.getRange(1,1,lr,1).getValues().flat();
+      const colB = sh.getRange(1,2,lr,1).getValues().flat();
+      const colC = sh.getRange(1,3,lr,1).getValues().flat();
+      agentIndex = buildAgentIndex_(colA, colB, colC);
+    }
+    ctx.agent = {
+      sheet: sh,
+      index: agentIndex,
+      colored: buildColoredIdSet_(agentLink.spreadsheetId, sh.getName())
+    };
+  }
+
+  if (adminLink) {
+    const ss = SpreadsheetApp.openById(adminLink.spreadsheetId);
+    const sh = adminLink.sheetName ? ss.getSheetByName(adminLink.sheetName) : (ss.getSheets()[0] || null);
+    if (!sh) throw new Error('⚠️ تعذّر فتح ورقة الإدارة في الشيت الخارجي. تأكد من صحة الرابط والاسم.');
+    ctx.admin = {
+      sheet: sh,
+      rowMap: buildAdminRowMapFromSheet_(sh),
+      colored: buildColoredIdSet_(adminLink.spreadsheetId, sh.getName())
+    };
+  }
+
+  return ctx;
+}
+
+function gatherBulkEntry_(id, ctx) {
+  const { agentIndex, adminRowMap, coloredAgent, coloredAdmin, external, discountPercent } = ctx;
+  const extAgentIndex = external && external.agent ? external.agent.index : {};
+  const extAdminMap   = external && external.admin ? external.admin.rowMap : {};
+  const extColoredAgent = external && external.agent ? (external.agent.colored || {}) : {};
+  const extColoredAdmin = external && external.admin ? (external.admin.colored || {}) : {};
+
+  const localNode = agentIndex[id];
+  const externalNode = extAgentIndex ? extAgentIndex[id] : null;
+  const agentRowsLocal = localNode && Array.isArray(localNode.rows) ? localNode.rows.length : 0;
+  const agentRowsExternal = externalNode && Array.isArray(externalNode.rows) ? externalNode.rows.length : 0;
+  const agentRowsCount = agentRowsLocal + agentRowsExternal;
+  const adminRowsLocal = adminRowMap[id] || [];
+  const adminRowsExternal = extAdminMap && extAdminMap[id] ? extAdminMap[id] : [];
+  const adminRowsCount = adminRowsLocal.length + adminRowsExternal.length;
+
+  const inAgent = agentRowsCount > 0;
+  const inAdmin = adminRowsCount > 0;
+
+  const status = computeStatusForCounts_(inAgent, agentRowsCount, inAdmin);
+
+  const salaryLocal = localNode ? Number(localNode.sum || 0) : 0;
+  const salaryExternal = externalNode ? Number(externalNode.sum || 0) : 0;
+  const salaryTotal = salaryLocal + salaryExternal;
+  const p = Math.max(0, Math.min(100, Number(discountPercent)||0));
+  const discountAmount = salaryTotal * (p/100);
+  const salaryAfter = salaryTotal - discountAmount;
+
+  const agentColored = !!(coloredAgent && coloredAgent[id]) || !!extColoredAgent[id];
+  const adminColored = !!(coloredAdmin && coloredAdmin[id]) || !!extColoredAdmin[id];
+
+  let duplicateLabel = '';
+  if (agentColored && adminColored) duplicateLabel = 'مكرر';
+  else if (agentColored) duplicateLabel = 'مكرر وكالة فقط';
+  else if (adminColored) duplicateLabel = 'مكرر إدارة فقط';
+
+  return {
+    id: id,
+    status: status,
+    salary: round2_(salaryTotal),
+    salaryAfterDiscount: round2_(salaryAfter),
+    discountAmount: round2_(discountAmount),
+    inAgent: inAgent,
+    inAdmin: inAdmin,
+    agentRows: agentRowsCount,
+    adminRows: adminRowsCount,
+    coloredAgent: agentColored,
+    coloredAdmin: adminColored,
+    duplicateLabel: duplicateLabel,
+    sources: {
+      localAgent: !!localNode,
+      externalAgent: !!externalNode,
+      localAdmin: adminRowsLocal.length > 0,
+      externalAdmin: adminRowsExternal.length > 0
+    }
+  };
+}
+
+/*****************************
+ * دوال عامة للواجهة الجديدة
+ *****************************/
+function listSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheets().map(function(sh){ return sh.getName(); });
+}
+
+function createSheetIfMissing(name) {
+  try {
+    name = String(name||'').trim();
+    if (!name) return { ok:false, message:'⚠️ اكتب اسم ورقة جديدة أولاً.' };
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const existing = ss.getSheetByName(name);
+    if (existing) {
+      return { ok:true, message:'ℹ️ الورقة موجودة مسبقًا: '+name, created:false };
+    }
+    ss.insertSheet(name);
+    return { ok:true, message:'✅ تم إنشاء الورقة: '+name, created:true };
+  } catch(e) {
+    return { ok:false, message:'خطأ أثناء إنشاء الورقة: '+(e.message||String(e)) };
+  }
+}
+
+function getExternalSheetLinksFromSettings() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('Settings');
+  if (!sh) {
+    throw new Error('⚠️ لم يتم العثور على ورقة Settings لقراءة روابط الشيت الخارجي.');
+  }
+  const lr = sh.getLastRow();
+  if (lr < 2) {
+    return { adminUrl:'', agentUrl:'' };
+  }
+  const vals = sh.getRange(2,9,1,2).getDisplayValues()[0];
+  return {
+    adminUrl: String(vals[0] || '').trim(),
+    agentUrl: String(vals[1] || '').trim()
+  };
+}
+
+function bulkSearchExact(ids, discountParam) {
+  try {
+    if (!Array.isArray(ids)) throw new Error('⚠️ أرسل مصفوفة IDs للتحليل.');
+    const clean = ids.map(function(x){ return String(x||'').trim(); }).filter(function(x){ return x; });
+    if (!clean.length) {
+      return { ok:true, results:[], summary:{ totalCount:0, coloredCount:0, uncoloredCount:0, totalSalary:0, totalAfterDiscount:0, discountPercent:0 } };
+    }
+
+    let discountPercent = 0;
+    let scope = 'agent';
+    if (typeof discountParam === 'object' && discountParam !== null) {
+      if (Object.prototype.hasOwnProperty.call(discountParam, 'percent')) {
+        discountPercent = Number(discountParam.percent);
+      } else if (Object.prototype.hasOwnProperty.call(discountParam, 'discount')) {
+        discountPercent = Number(discountParam.discount);
+      } else if (Object.prototype.hasOwnProperty.call(discountParam, 'value')) {
+        discountPercent = Number(discountParam.value);
+      } else {
+        discountPercent = Number(discountParam || 0);
+      }
+      if (discountParam.scope) scope = String(discountParam.scope);
+    } else {
+      discountPercent = Number(discountParam || 0);
+    }
+    discountPercent = Math.max(0, Math.min(100, discountPercent||0));
+
+    const cache = CacheService.getScriptCache();
+    const agentIndex = cacheGetChunked_(KEY_AGENT_INDEX, cache);
+    const adminRowMap = cacheGetChunked_(KEY_ADMIN_ROW_MAP, cache);
+    const coloredAgent = cacheGetChunked_(KEY_COLORED_AGENT, cache);
+    const coloredAdmin = cacheGetChunked_(KEY_COLORED_ADMIN, cache);
+
+    if (!agentIndex || !adminRowMap || !coloredAgent || !coloredAdmin) {
+      throw new Error('⚠️ البيانات غير محمّلة. اضغط "تحميل البيانات" أولاً.');
+    }
+
+    const external = loadExternalContextForScope_(scope);
+
+    const ctx = {
+      agentIndex: agentIndex,
+      adminRowMap: adminRowMap,
+      coloredAgent: coloredAgent,
+      coloredAdmin: coloredAdmin,
+      external: external,
+      discountPercent: discountPercent
+    };
+
+    const results = [];
+    let totalSalary = 0;
+    let totalAfter = 0;
+    let coloredCount = 0;
+
+    for (let i=0;i<clean.length;i++){
+      const id = clean[i];
+      const entry = gatherBulkEntry_(id, ctx);
+      entry.index = i;
+      results.push(entry);
+      totalSalary += Number(entry.salary||0);
+      totalAfter += Number(entry.salaryAfterDiscount||0);
+      if (entry.coloredAgent || entry.coloredAdmin) coloredCount++;
+    }
+
+    const summary = {
+      totalCount: results.length,
+      coloredCount: coloredCount,
+      uncoloredCount: Math.max(0, results.length - coloredCount),
+      totalSalary: round2_(totalSalary),
+      totalAfterDiscount: round2_(totalAfter),
+      discountPercent: discountPercent,
+      scope: scope,
+      externalUsed: !!external && !!external.used
+    };
+
+    return { ok:true, results:results, summary:summary };
+  } catch(e) {
+    return { ok:false, message:e.message || String(e) };
+  }
+}
+
+function bulkExecuteExact(ids, config) {
+  try {
+    if (!Array.isArray(ids) || !ids.length) {
+      throw new Error('⚠️ لا توجد IDs للتنفيذ.');
+    }
+
+    config = config || {};
+    const scope = String(config.scope || 'agent');
+    let targetMode = String(config.targetMode || '').trim().toLowerCase();
+    if (!targetMode) targetMode = (scope === 'agent') ? 'agent' : 'both';
+    const doAdmin = targetMode === 'both';
+
+    const adminColor = String(config.adminColor || '#fde68a');
+    const withdrawColor = String(config.withdrawColor || '#ddd6fe');
+    const targetSheetName = String(config.sheetName || '').trim();
+
+    const cache = CacheService.getScriptCache();
+    const agentIndex = cacheGetChunked_(KEY_AGENT_INDEX, cache) || {};
+    const adminRowMap = cacheGetChunked_(KEY_ADMIN_ROW_MAP, cache) || {};
+    let coloredAgent = cacheGetChunked_(KEY_COLORED_AGENT, cache) || {};
+    let coloredAdmin = cacheGetChunked_(KEY_COLORED_ADMIN, cache) || {};
+
+    const cfg = getConfig_();
+    const agSS = SpreadsheetApp.openById(cfg.AGENT_SHEET_ID);
+    const agSh = agSS.getSheetByName(cfg.AGENT_SHEET_NAME);
+    if (!agSh) throw new Error('⚠️ ورقة الوكيل غير متاحة.');
+    const adSS = SpreadsheetApp.openById(cfg.ADMIN_SHEET_ID);
+    const adSh = adSS.getSheetByName(cfg.ADMIN_SHEET_NAME);
+    if (!adSh) throw new Error('⚠️ ورقة الإدارة غير متاحة.');
+
+    let targetSheet = null;
+    if (doAdmin) {
+      if (!targetSheetName) {
+        throw new Error('⚠️ اختر ورقة الهدف قبل التنفيذ.');
+      }
+      targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheetName);
+      if (!targetSheet) {
+        throw new Error('⚠️ لم يتم العثور على ورقة الهدف داخل الملف الحالي.');
+      }
+    }
+
+    const external = loadExternalContextForScope_(scope);
+
+    const contextForSearch = {
+      agentIndex: agentIndex,
+      adminRowMap: adminRowMap,
+      coloredAgent: coloredAgent,
+      coloredAdmin: coloredAdmin,
+      external: external,
+      discountPercent: 0
+    };
+
+    const details = [];
+    let coloredCounter = 0;
+
+    const agentColorBag = Object.create(null);
+    const adminColorBag = Object.create(null);
+    const agentColorBagExt = Object.create(null);
+    const adminColorBagExt = Object.create(null);
+
+    const extAgentSheet = external && external.agent ? external.agent.sheet : null;
+    const extAdminSheet = external && external.admin ? external.admin.sheet : null;
+    const extColoredAgent = external && external.agent ? (external.agent.colored || {}) : {};
+    const extColoredAdmin = external && external.admin ? (external.admin.colored || {}) : {};
+
+    for (let i=0;i<ids.length;i++){
+      const rawId = String(ids[i]||'').trim();
+      if (!rawId) {
+        details.push({ id:'', status:'غير صالح', coloredAgent:false, coloredAdmin:false, found:false });
+        continue;
+      }
+
+      const info = gatherBulkEntry_(rawId, contextForSearch);
+      const status = info.status;
+      const found = info.inAgent || info.inAdmin;
+
+      if (found) {
+        const useAgentColor = status.includes('سحب وكالة') || status.includes('وكالة');
+        const colorForAgent = useAgentColor ? withdrawColor : adminColor;
+        const colorForAdmin = status.includes('ادارة') || useAgentColor ? (useAgentColor ? withdrawColor : adminColor) : adminColor;
+
+        const localNode = agentIndex[rawId];
+        if (info.inAgent && localNode && Array.isArray(localNode.rows) && localNode.rows.length){
+          if (!coloredAgent[rawId]) {
+            agentColorBag[rawId] = { rows: localNode.rows.slice(), color: colorForAgent };
+            coloredAgent[rawId] = 1;
+            coloredCounter += localNode.rows.length;
+          }
+        }
+
+        if (info.inAgent && external && external.agent) {
+          const extNode = external.agent.index[rawId];
+          if (extNode && Array.isArray(extNode.rows) && extNode.rows.length) {
+            if (!extColoredAgent[rawId]) {
+              agentColorBagExt[rawId] = { rows: extNode.rows.slice(), color: colorForAgent };
+              extColoredAgent[rawId] = 1;
+            }
+          }
+        }
+
+        if (doAdmin && info.inAdmin) {
+          const adRows = adminRowMap[rawId] || [];
+          if (adRows.length && !coloredAdmin[rawId]) {
+            adminColorBag[rawId] = { rows: adRows.slice(), color: colorForAdmin };
+            coloredAdmin[rawId] = 1;
+            coloredCounter += adRows.length;
+          }
+          if (external && external.admin) {
+            const extRows = external.admin.rowMap[rawId] || [];
+            if (extRows.length && !extColoredAdmin[rawId]) {
+              adminColorBagExt[rawId] = { rows: extRows.slice(), color: colorForAdmin };
+              extColoredAdmin[rawId] = 1;
+            }
+          }
+        }
+
+      }
+
+      details.push({
+        id: rawId,
+        status: status,
+        coloredAgent: info.coloredAgent || !!agentColorBag[rawId] || !!agentColorBagExt[rawId],
+        coloredAdmin: info.coloredAdmin || !!adminColorBag[rawId] || !!adminColorBagExt[rawId],
+        found: found
+      });
+    }
+
+    // لوّن دفعة واحدة لكل ID
+    for (const id in agentColorBag){
+      const bag = agentColorBag[id];
+      colorRowsFast_(agSh, bag.rows, bag.color);
+    }
+    for (const id in adminColorBag){
+      const bag = adminColorBag[id];
+      colorRowsFast_(adSh, bag.rows, bag.color);
+    }
+    if (extAgentSheet) {
+      for (const id in agentColorBagExt){
+        const bag = agentColorBagExt[id];
+        colorRowsFast_(extAgentSheet, bag.rows, bag.color);
+      }
+    }
+    if (extAdminSheet) {
+      for (const id in adminColorBagExt){
+        const bag = adminColorBagExt[id];
+        colorRowsFast_(extAdminSheet, bag.rows, bag.color);
+      }
+    }
+
+    SpreadsheetApp.flush();
+
+    cachePutChunked_(KEY_COLORED_AGENT, coloredAgent, cache);
+    cachePutChunked_(KEY_COLORED_ADMIN, coloredAdmin, cache);
+
+    return {
+      ok:true,
+      details: details,
+      summary: {
+        processed: ids.length,
+        coloredRows: coloredCounter,
+        scope: scope
+      }
+    };
+  } catch(e) {
+    return { ok:false, message: e.message || String(e) };
+  }
+}
+
 /** Helper to include partial HTML files in templates */
 function include(name){
   return HtmlService.createHtmlOutputFromFile(name).getContent();
