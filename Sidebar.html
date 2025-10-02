@@ -134,43 +134,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
   #bulkCard .bulk-buttons{flex-direction:column;}
   #bulkCard .bulk-buttons > button{flex:1 1 auto;width:100%;}
   #bulkCard .bulk-table-wrap{max-height:240px;}
-  #bulkCard .bulk-section > .row,
-  #bulkCard .bulk-section > .row.stretch,
-  #bulkCard .row,
-  #bulkCard .row.stretch{
-    flex-direction:column;
-    align-items:stretch;
-    width:100%;
-    gap:8px;
-  }
-  #bulkCard select,
-  #bulkCard input[type="text"],
-  #bulkCard input[type="number"]{
-    width:100% !important;
-    min-width:0 !important;
-    min-height:44px !important;
-  }
-  #bulkCard #bulkCreateSheetBtn{
-    width:100% !important;
-  }
-  #bulkCard input[type="color"]{
-    width:100% !important;
-    height:44px !important;
-  }
-  #bulkCard .toggle-chip{
-    width:100%;
-    justify-content:space-between;
-    gap:12px;
-    padding:10px 12px;
-  }
-  #bulkCard .toggle-chip .switch-label{
-    font-size:14px;
-    white-space:normal;
-  }
-  #bulkCard .bulk-metrics{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:10px;
-  }
 }
 
 </style>
@@ -372,7 +335,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
         <button id="qtRefreshCnt" class="btn-ghost" title="تحديث العدّاد">↻ تحديث</button>
       </div>
     </div>
-    </div>
 
   </div>
 
@@ -407,13 +369,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
           <label class="small" for="bulkDiscount">نسبة خصم (%)</label>
           <input id="bulkDiscount" type="number" min="0" max="100" step="1" value="0">
         </div>
-        <div class="toggle-chip" style="flex:1 1 220px;min-width:160px;justify-content:space-between;">
-          <span class="switch-label">تطبيق الخصم مباشرة</span>
-          <label class="ios-toggle">
-            <input id="bulkApplyDiscount" type="checkbox">
-            <span class="slider"></span>
-          </label>
-        </div>
+
       </div>
       <div class="bulk-section">
         <label class="small" for="bulkIds">ألصق عدة IDs</label>
@@ -455,8 +411,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
         </table>
       </div>
     </div>
-
-  </div>
 
   <script>
     // عناصر عامة
