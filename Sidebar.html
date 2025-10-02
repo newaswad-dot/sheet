@@ -93,7 +93,35 @@
     .toggle-chip{display:flex;align-items:center;gap:10px;padding:6px 10px;border:1px solid var(--border);border-radius:14px;background:#fafafa}
     body.dark .toggle-chip{background:#111827;border-color:#2d323c}
     .toggles-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  
+
+    /* bulk tool */
+    #bulkCard{position:relative;}
+    #bulkCard strong{font-size:16px;}
+    #bulkCard .bulk-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+    #bulkCard .bulk-header .muted{margin-inline-start:auto;}
+    #bulkCard .bulk-section{margin-bottom:12px;}
+    #bulkCard .bulk-textarea{width:100%;min-height:120px;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:14px;font-family:inherit;resize:vertical;}
+    #bulkCard .bulk-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+    #bulkCard .bulk-buttons > button{flex:1 1 140px;min-height:44px;}
+    #bulkNote{margin-top:6px;min-height:18px;}
+    .bulk-progress{position:relative;background:rgba(37,99,235,0.08);border-radius:999px;height:10px;margin-top:16px;overflow:hidden;}
+    .bulk-progress__bar{position:absolute;top:0;right:0;height:100%;width:0;background:var(--blue);transition:width .35s ease;}
+    body.dark .bulk-progress{background:rgba(59,130,246,0.18);}
+    body.dark .bulk-progress__bar{background:#60a5fa;}
+    .bulk-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px;font-size:13px;}
+    .bulk-metrics span{display:block;color:var(--muted);font-size:12px;}
+    .bulk-table-wrap{margin-top:14px;overflow:auto;max-height:320px;border:1px solid var(--border);border-radius:12px;}
+    table#bulkResultsTable{width:100%;border-collapse:collapse;min-width:520px;}
+    #bulkResultsTable thead th{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);padding:10px;font-size:12px;text-align:right;}
+    #bulkResultsTable tbody td{padding:8px 10px;border-bottom:1px solid var(--border);font-size:13px;}
+    #bulkResultsTable tbody tr:last-child td{border-bottom:0;}
+    #bulkResultsTable tbody tr.bulk-row-colored{background:rgba(37,99,235,0.06);}
+    body.dark #bulkResultsTable thead th{background:#1f232b;border-color:#2d323c;}
+    body.dark #bulkResultsTable tbody td{border-color:#2d323c;}
+    body.dark #bulkResultsTable tbody tr.bulk-row-colored{background:rgba(96,165,250,0.12);}
+    body.dark #bulkCard .bulk-textarea{background:#111827;border-color:#374151;color:#f9fafb;}
+    body.dark #bulkCard .bulk-metrics span{color:#9ca3af;}
+
 /* Mobile-first tweaks */
 html, body { max-width: 100%; overflow-x: hidden; }
 .container { width: 100%; max-width: 940px; margin: 0 auto; padding: 10px; }
@@ -102,6 +130,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .card{ border-radius: 14px !important; }
   .row{ flex-wrap: wrap !important; }
   input, button, select{ font-size: 16px !important; }
+  #bulkCard .bulk-header{flex-direction:column;align-items:flex-start;gap:6px;}
+  #bulkCard .bulk-buttons{flex-direction:column;}
+  #bulkCard .bulk-buttons > button{flex:1 1 auto;width:100%;}
+  #bulkCard .bulk-table-wrap{max-height:240px;}
 }
 
 </style>
@@ -307,6 +339,84 @@ html, body { max-width: 100%; overflow-x: hidden; }
 
   </div>
 
+    <!-- أداة البحث الجماعي -->
+    <div class="card span2" id="bulkCard">
+      <div class="bulk-header">
+        <strong>أداة البحث الجماعي</strong>
+        <div id="bulkStatus" class="muted">—</div>
+      </div>
+      <div class="bulk-section">
+        <label class="small" for="bulkScope">اختيار النطاق</label>
+        <select id="bulkScope">
+          <option value="agent">الوكيل فقط</option>
+          <option value="both">الإدارة + الوكيل</option>
+          <option value="all">الكل ويشمل شيت خارجي</option>
+        </select>
+      </div>
+      <div class="bulk-section" id="bulkSheetWrap">
+        <label class="small" for="bulkSheetSelect">اختيار الورقة</label>
+        <div class="row stretch" style="gap:8px;flex-wrap:wrap;align-items:stretch;">
+          <select id="bulkSheetSelect" style="flex:2 1 180px;min-width:160px"></select>
+          <input id="bulkSheetNew" type="text" placeholder="اسم ورقة جديدة" style="flex:1 1 150px;min-width:140px">
+          <button id="bulkCreateSheetBtn" class="btn-ghost" style="flex:0 0 auto;min-width:120px">إنشاء ورقة</button>
+        </div>
+      </div>
+      <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1 1 160px;min-width:140px">
+          <label class="small" for="bulkColor">أداة اختيار اللون</label>
+          <input id="bulkColor" type="color" value="#34c759" style="width:100%;height:44px;border-radius:12px;border:1px solid var(--border);background:transparent;padding:4px">
+        </div>
+        <div style="flex:1 1 160px;min-width:140px">
+          <label class="small" for="bulkDiscount">نسبة خصم (%)</label>
+          <input id="bulkDiscount" type="number" min="0" max="100" step="1" value="0">
+        </div>
+        <label class="ios-toggle" style="flex:1 1 200px;justify-content:flex-start">
+          <span class="switch-label">تطبيق الخصم مباشرة</span>
+          <input id="bulkApplyDiscount" type="checkbox">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="bulk-section">
+        <label class="small" for="bulkIds">ألصق عدة IDs</label>
+        <textarea id="bulkIds" class="bulk-textarea" placeholder="الصق IDs مفصولة بسطر، فاصلة أو مسافة"></textarea>
+      </div>
+      <div class="bulk-buttons">
+        <button id="bulkPasteBtn" class="btn-blue">لصق ثم بحث</button>
+        <button id="bulkAnalyzeBtn" class="btn-green">تحليل</button>
+        <button id="bulkExecuteBtn" class="btn-blue">تنفيذ الكل</button>
+      </div>
+      <div class="bulk-buttons" style="margin-top:6px">
+        <button id="bulkCopyAllBtn" class="btn-ghost">نسخ الكل</button>
+        <button id="bulkCopySalaryBtn" class="btn-ghost">نسخ الرواتب فقط</button>
+        <button id="bulkResetBtn" class="btn-red">إعادة تعيين</button>
+      </div>
+      <div id="bulkNote" class="muted">—</div>
+      <div class="bulk-progress">
+        <div id="bulkProgressBar" class="bulk-progress__bar"></div>
+      </div>
+      <div class="bulk-metrics">
+        <div><span>نسبة الإنجاز</span><b id="bulkProgressPct">0%</b></div>
+        <div><span>عدد الإدخالات</span><b id="bulkTotalCount">0</b></div>
+        <div><span>عدد الملوّنين</span><b id="bulkColoredCount">0</b></div>
+        <div><span>غير الملوّنين</span><b id="bulkUncoloredCount">0</b></div>
+        <div><span>مجموع الرواتب</span><b id="bulkSalaryTotal">0</b></div>
+      </div>
+      <div class="bulk-table-wrap">
+        <table id="bulkResultsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ID</th>
+              <th>الراتب</th>
+              <th>الحالة</th>
+              <th>ملوّن؟</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
   <script>
     // عناصر عامة
     const reloadBtn      = document.getElementById('reloadBtn');
@@ -361,6 +471,33 @@ const advCard  = document.getElementById('advCard');
     const qtHidePerson = document.getElementById('qtHidePerson');
     const qtDisablePerson = document.getElementById('qtDisablePerson');
 
+    // أداة البحث الجماعي
+    const bulkCardEl          = document.getElementById('bulkCard');
+    const bulkStatusEl        = document.getElementById('bulkStatus');
+    const bulkScopeSel        = document.getElementById('bulkScope');
+    const bulkSheetWrap       = document.getElementById('bulkSheetWrap');
+    const bulkSheetSelect     = document.getElementById('bulkSheetSelect');
+    const bulkSheetNew        = document.getElementById('bulkSheetNew');
+    const bulkCreateSheetBtn  = document.getElementById('bulkCreateSheetBtn');
+    const bulkColorInput      = document.getElementById('bulkColor');
+    const bulkDiscountInput   = document.getElementById('bulkDiscount');
+    const bulkApplyDiscount   = document.getElementById('bulkApplyDiscount');
+    const bulkIdsTextarea     = document.getElementById('bulkIds');
+    const bulkPasteBtn        = document.getElementById('bulkPasteBtn');
+    const bulkAnalyzeBtn      = document.getElementById('bulkAnalyzeBtn');
+    const bulkExecuteBtn      = document.getElementById('bulkExecuteBtn');
+    const bulkCopyAllBtn      = document.getElementById('bulkCopyAllBtn');
+    const bulkCopySalaryBtn   = document.getElementById('bulkCopySalaryBtn');
+    const bulkResetBtn        = document.getElementById('bulkResetBtn');
+    const bulkNoteEl          = document.getElementById('bulkNote');
+    const bulkProgressBar     = document.getElementById('bulkProgressBar');
+    const bulkProgressPctEl   = document.getElementById('bulkProgressPct');
+    const bulkTotalCountEl    = document.getElementById('bulkTotalCount');
+    const bulkColoredCountEl  = document.getElementById('bulkColoredCount');
+    const bulkUncoloredCountEl= document.getElementById('bulkUncoloredCount');
+    const bulkSalaryTotalEl   = document.getElementById('bulkSalaryTotal');
+    const bulkResultsBody     = document.querySelector('#bulkResultsTable tbody');
+
     // حالة
     let localMap = null;
     let lastResult = null;
@@ -371,6 +508,336 @@ const advCard  = document.getElementById('advCard');
       const x = Number(n);
       return isNaN(x) ? '—' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(x);
     };
+
+    /******** أداة البحث الجماعي ********/
+    const bulkState = {
+      ids: [],
+      results: [],
+      stats: { total:0, colored:0, uncolored:0, sum:0, discount:0, afterDiscount:0, percent:0 },
+      running: false
+    };
+
+    function clampPercent(v){
+      const num = Number(v);
+      if (isNaN(num)) return 0;
+      return Math.max(0, Math.min(100, num));
+    }
+    function dedupeIdsKeepOrder(arr){
+      const seen = Object.create(null);
+      const out = [];
+      (arr||[]).forEach(id=>{
+        const v = String(id||'').trim();
+        if (!v || seen[v]) return;
+        seen[v] = 1;
+        out.push(v);
+      });
+      return out;
+    }
+    function parseBulkIds(txt){
+      if (!txt) return [];
+      return dedupeIdsKeepOrder(String(txt).split(/[\s,؛،]+/));
+    }
+    function setBulkStatus(text){ if (bulkStatusEl) bulkStatusEl.textContent = text || '—'; }
+    function setBulkNote(text){ if (bulkNoteEl) bulkNoteEl.textContent = text || '—'; }
+    function setBulkProgress(pct){
+      if (!bulkProgressBar || !bulkProgressPctEl) return;
+      const val = Math.max(0, Math.min(100, Number(pct)||0));
+      bulkProgressBar.style.width = val + '%';
+      bulkProgressPctEl.textContent = Math.round(val) + '%';
+    }
+    function resetBulkStats(){
+      bulkState.stats = { total:0, colored:0, uncolored:0, sum:0, discount:0, afterDiscount:0, percent:0 };
+    }
+    function renderBulkStats(){
+      const st = bulkState.stats || {};
+      if (bulkTotalCountEl)    bulkTotalCountEl.textContent    = fmt(st.total || 0);
+      if (bulkColoredCountEl)  bulkColoredCountEl.textContent  = fmt(st.colored || 0);
+      if (bulkUncoloredCountEl)bulkUncoloredCountEl.textContent= fmt(st.uncolored || 0);
+
+      if (bulkSalaryTotalEl){
+        const sum = Number(st.sum || 0);
+        const discount = Number(st.discount || 0);
+        const after = Number(st.afterDiscount || sum);
+        if (bulkApplyDiscount && bulkApplyDiscount.checked){
+          const base = fmt(after);
+          bulkSalaryTotalEl.textContent = discount ? `${base} (خصم ${fmt(discount)})` : base;
+        } else {
+          const base = fmt(sum);
+          bulkSalaryTotalEl.textContent = discount ? `${base} (بعد الخصم ${fmt(after)})` : base;
+        }
+      }
+
+      setBulkProgress(typeof st.percent === 'number' ? st.percent : 0);
+    }
+    function renderBulkTable(rows){
+      if (!bulkResultsBody) return;
+      bulkResultsBody.innerHTML = '';
+      const useDiscount = !!(bulkApplyDiscount && bulkApplyDiscount.checked);
+      if (!Array.isArray(rows) || !rows.length){
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.textContent = 'لا توجد نتائج بعد.';
+        td.style.textAlign = 'center';
+        td.style.padding = '18px';
+        tr.appendChild(td);
+        bulkResultsBody.appendChild(tr);
+        return;
+      }
+      rows.forEach(row=>{
+        const tr = document.createElement('tr');
+        const colored = !!(row && (row.coloredAgent || row.coloredAdmin));
+        const cells = [
+          row?.index || '',
+          row?.id || '',
+          useDiscount ? fmt(row?.salaryAfterDiscount) : fmt(row?.salary),
+          row?.status || '',
+          colored ? 'نعم' : 'لا'
+        ];
+        cells.forEach((val, idx)=>{
+          const td = document.createElement('td');
+          td.textContent = val === undefined ? '' : val;
+          if (idx === 4) td.style.textAlign = 'center';
+          tr.appendChild(td);
+        });
+        if (colored) tr.classList.add('bulk-row-colored');
+        bulkResultsBody.appendChild(tr);
+      });
+    }
+    function ensureBulkSheetVisibility(){
+      if (!bulkSheetWrap || !bulkScopeSel) return;
+      const scope = (bulkScopeSel.value || 'agent').toLowerCase();
+      bulkSheetWrap.style.display = (scope === 'all') ? '' : 'none';
+    }
+    function collectBulkIds(){
+      const ids = parseBulkIds(bulkIdsTextarea ? bulkIdsTextarea.value : '');
+      bulkState.ids = ids;
+      return ids;
+    }
+    async function readClipboardSafe(){
+      if (navigator.clipboard && navigator.clipboard.readText){
+        try {
+          const txt = await navigator.clipboard.readText();
+          if (txt && txt.trim()) return txt;
+        } catch(_){}
+      }
+      return null;
+    }
+    async function copyTextSafe(txt){
+      if (!txt) return false;
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        try { await navigator.clipboard.writeText(txt); return true; }
+        catch(_){}
+      }
+      try {
+        const manual = prompt('انسخ يدويًا ثم اضغط موافق:', txt);
+        return !!manual;
+      } catch(_) {
+        return false;
+      }
+    }
+    function setBulkRunning(flag, statusText){
+      bulkState.running = !!flag;
+      const btns = [bulkPasteBtn, bulkAnalyzeBtn, bulkExecuteBtn, bulkCopyAllBtn, bulkCopySalaryBtn, bulkResetBtn, bulkCreateSheetBtn];
+      btns.forEach(btn=>{ if (btn) btn.disabled = !!flag; });
+      if (statusText) setBulkStatus(statusText);
+      else setBulkStatus(flag ? 'جارٍ المعالجة…' : 'جاهز');
+    }
+    function handleBulkResponse(res, source){
+      if (!res || res.ok !== true){
+        setBulkNote(res?.message || '⚠️ حدث خطأ.');
+        setBulkStatus('⚠️');
+        resetBulkStats();
+        renderBulkStats();
+        renderBulkTable([]);
+        setBulkProgress(0);
+        return;
+      }
+      bulkState.results = Array.isArray(res.results) ? res.results : [];
+      bulkState.stats = Object.assign({ total:0, colored:0, uncolored:0, sum:0, discount:0, afterDiscount:0, percent:0 }, res.stats||{});
+      setBulkNote(res.message || (source === 'execute' ? 'تم التنفيذ ✅' : 'تم التحليل ✅'));
+      setBulkStatus(res.message || (source === 'execute' ? 'تم التنفيذ' : 'تم التحليل'));
+      renderBulkStats();
+      renderBulkTable(bulkState.results);
+      if (source === 'execute'){ // حدّث الذاكرة المحلية وحارس التكرار
+        bulkState.results.forEach(row=>{
+          const id = String(row?.id||'').trim();
+          if (!id) return;
+          if (row.coloredAgent || row.coloredAdmin){
+            justColored[id] = (row.coloredAgent && row.coloredAdmin) ? 'both' : (row.coloredAgent ? 'agent' : 'admin');
+          }
+          if (localMap && localMap[id]){
+            if (row.coloredAgent) localMap[id].aCol = true;
+            if (row.coloredAdmin) localMap[id].dCol = true;
+          }
+        });
+        refreshCountsLive();
+      }
+    }
+    function resetBulkTool(){
+      if (bulkIdsTextarea) bulkIdsTextarea.value = '';
+      bulkState.ids = [];
+      bulkState.results = [];
+      resetBulkStats();
+      renderBulkStats();
+      renderBulkTable([]);
+      setBulkProgress(0);
+      setBulkNote('تمت إعادة التعيين.');
+      setBulkStatus('—');
+    }
+    function buildBulkCopyText(mode){
+      if (!Array.isArray(bulkState.results) || !bulkState.results.length) return '';
+      const useDiscount = !!(bulkApplyDiscount && bulkApplyDiscount.checked);
+      return bulkState.results.map(row=>{
+        const base = useDiscount ? Number(row?.salaryAfterDiscount||0) : Number(row?.salary||0);
+        const salaryText = base.toFixed(2);
+        if (mode === 'salary'){
+          return `${row?.id || ''}\t${salaryText}`;
+        }
+        return `${row?.id || ''}\t${salaryText}\t${row?.status || ''}`;
+      }).join('\n');
+    }
+    function triggerBulkAnalyze(){
+      const ids = collectBulkIds();
+      if (!ids.length){ setBulkNote('⚠️ أضف IDs أولاً.'); setBulkStatus('جاهز'); return; }
+      setBulkRunning(true, 'جارٍ التحليل…');
+      setBulkNote('جارٍ التحليل…');
+      setBulkProgress(8);
+      const discount = clampPercent(bulkDiscountInput ? bulkDiscountInput.value : 0);
+      google.script.run
+        .withSuccessHandler(res=>{ setBulkRunning(false); handleBulkResponse(res, 'analyze'); })
+        .withFailureHandler(err=>{
+          setBulkRunning(false);
+          setBulkStatus('⚠️');
+          setBulkNote('خطأ: ' + (err?.message || '')); setBulkProgress(0);
+        })
+        .bulkSearchExact(ids, discount);
+    }
+    function triggerBulkExecute(){
+      const ids = collectBulkIds();
+      if (!ids.length){ setBulkNote('⚠️ أضف IDs أولاً.'); setBulkStatus('جاهز'); return; }
+      const scope = (bulkScopeSel?.value || 'agent').toLowerCase();
+      if (scope === 'all'){ const name = String(bulkSheetSelect?.value || '').trim(); if (!name){ setBulkNote('⚠️ اختر ورقة للتصدير.'); return; } }
+      setBulkRunning(true, 'جارٍ التنفيذ…');
+      setBulkNote('جارٍ التنفيذ…');
+      setBulkProgress(12);
+      const payload = {
+        scope: scope,
+        sheetName: bulkSheetSelect ? bulkSheetSelect.value : '',
+        color: bulkColorInput ? bulkColorInput.value : '#34c759',
+        discount: clampPercent(bulkDiscountInput ? bulkDiscountInput.value : 0),
+        applyDiscount: !!(bulkApplyDiscount && bulkApplyDiscount.checked)
+      };
+      google.script.run
+        .withSuccessHandler(res=>{ setBulkRunning(false); handleBulkResponse(res, 'execute'); })
+        .withFailureHandler(err=>{
+          setBulkRunning(false);
+          setBulkStatus('⚠️');
+          setBulkNote('خطأ: ' + (err?.message || ''));
+          setBulkProgress(0);
+        })
+        .bulkExecuteExact(ids, payload);
+    }
+    function loadBulkSheets(selectName){
+      if (!bulkSheetSelect) return;
+      bulkSheetSelect.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '—';
+      bulkSheetSelect.appendChild(placeholder);
+      google.script.run
+        .withSuccessHandler(list=>{
+          bulkSheetSelect.innerHTML = '';
+          const names = Array.isArray(list) ? list : [];
+          if (!names.length){
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'لا توجد أوراق';
+            bulkSheetSelect.appendChild(opt);
+            return;
+          }
+          names.forEach(name=>{
+            const opt = document.createElement('option');
+            opt.value = opt.textContent = name;
+            bulkSheetSelect.appendChild(opt);
+          });
+          if (selectName){
+            const found = Array.from(bulkSheetSelect.options).find(o=>o.value === selectName);
+            if (found) bulkSheetSelect.value = selectName;
+          }
+        })
+        .withFailureHandler(()=>{
+          bulkSheetSelect.innerHTML = '';
+          const opt = document.createElement('option');
+          opt.value=''; opt.textContent='⚠️ تعذّر التحميل';
+          bulkSheetSelect.appendChild(opt);
+        })
+        .listSheets();
+    }
+
+    ensureBulkSheetVisibility();
+    loadBulkSheets();
+    resetBulkStats();
+    renderBulkStats();
+    renderBulkTable([]);
+    setBulkProgress(0);
+
+    if (bulkScopeSel) bulkScopeSel.addEventListener('change', ensureBulkSheetVisibility);
+    if (bulkPasteBtn) bulkPasteBtn.addEventListener('click', async ()=>{
+      setBulkNote('جارٍ قراءة الحافظة…');
+      let txt = await readClipboardSafe();
+      if (!txt){
+        try { txt = prompt('الصق IDs هنا:') || ''; }
+        catch(_) { txt = ''; }
+      }
+      txt = (txt || '').trim();
+      if (!txt){ setBulkNote('⚠️ لم يتم العثور على نص.'); setBulkStatus('جاهز'); return; }
+      if (bulkIdsTextarea) bulkIdsTextarea.value = txt;
+      triggerBulkAnalyze();
+    });
+    if (bulkAnalyzeBtn) bulkAnalyzeBtn.addEventListener('click', triggerBulkAnalyze);
+    if (bulkExecuteBtn) bulkExecuteBtn.addEventListener('click', triggerBulkExecute);
+    if (bulkCopyAllBtn) bulkCopyAllBtn.addEventListener('click', async ()=>{
+      const txt = buildBulkCopyText('full');
+      if (!txt){ setBulkNote('⚠️ لا يوجد بيانات لنسخها.'); return; }
+      const ok = await copyTextSafe(txt);
+      setBulkNote(ok ? '✅ تم نسخ النتيجة (ID + الراتب + الحالة).' : '⚠️ تعذّر النسخ.');
+    });
+    if (bulkCopySalaryBtn) bulkCopySalaryBtn.addEventListener('click', async ()=>{
+      const txt = buildBulkCopyText('salary');
+      if (!txt){ setBulkNote('⚠️ لا يوجد بيانات لنسخها.'); return; }
+      const ok = await copyTextSafe(txt);
+      setBulkNote(ok ? '✅ تم نسخ الرواتب.' : '⚠️ تعذّر النسخ.');
+    });
+    if (bulkResetBtn) bulkResetBtn.addEventListener('click', resetBulkTool);
+    if (bulkApplyDiscount) bulkApplyDiscount.addEventListener('change', ()=>{
+      renderBulkStats();
+      renderBulkTable(bulkState.results);
+    });
+    if (bulkDiscountInput) bulkDiscountInput.addEventListener('change', ()=>{
+      const clamped = clampPercent(bulkDiscountInput.value);
+      bulkDiscountInput.value = clamped;
+      setBulkNote('ℹ️ أعد التحليل لتطبيق الخصم الجديد.');
+    });
+    if (bulkCreateSheetBtn) bulkCreateSheetBtn.addEventListener('click', ()=>{
+      const name = String(bulkSheetNew?.value || '').trim();
+      if (!name){ setBulkNote('⚠️ اكتب اسم ورقة جديدة.'); return; }
+      bulkCreateSheetBtn.disabled = true;
+      google.script.run
+        .withSuccessHandler(res=>{
+          bulkCreateSheetBtn.disabled = false;
+          const msg = res?.message || 'تم إنشاء الورقة ✅';
+          setBulkNote(msg);
+          const newName = res?.name || name;
+          if (bulkSheetNew) bulkSheetNew.value = '';
+          loadBulkSheets(newName);
+        })
+        .withFailureHandler(err=>{
+          bulkCreateSheetBtn.disabled = false;
+          setBulkNote('خطأ: ' + (err?.message || ''));
+        })
+        .createSheetIfMissing(name);
+    });
 
     /******** قسم البيانات (إخفاء/تعطيل) ********/
     function isPersonFeatureDisabled(){ return localStorage.getItem('disable_person_feature') === '1'; }
@@ -1400,7 +1867,8 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
         "search"
         "exec"
         "person"
-        "quick";
+        "quick"
+        "bulk";
       gap:14px !important;
     }
 
@@ -1411,6 +1879,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
     #execCard   { grid-area: exec    !important; }
     #personCard { grid-area: person  !important; }
     #quickTools { grid-area: quick   !important; }
+    #bulkCard   { grid-area: bulk    !important; }
 
     /* خفّف الكروت على الموبايل */
     .card{
