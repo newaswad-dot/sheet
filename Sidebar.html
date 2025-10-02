@@ -93,7 +93,45 @@
     .toggle-chip{display:flex;align-items:center;gap:10px;padding:6px 10px;border:1px solid var(--border);border-radius:14px;background:#fafafa}
     body.dark .toggle-chip{background:#111827;border-color:#2d323c}
     .toggles-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  
+
+    /* بطاقة البحث الجماعي */
+    #bulkCard{margin-top:8px;}
+    #bulkCard h3{margin:0;font-size:18px;font-weight:800;}
+    #bulkCard .bulk-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;}
+    #bulkCard .bulk-note{font-size:12px;color:var(--muted);}
+    #bulkCard .bulk-grid{display:grid;gap:12px;}
+    #bulkCard .bulk-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    #bulkCard .bulk-row select,#bulkCard .bulk-row input[type="number"],#bulkCard .bulk-row input[type="text"]{flex:1;min-width:0;}
+    #bulkCard textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:14px;min-height:180px;resize:vertical;background:#fff;}
+    body.dark #bulkCard textarea{background:#111827;color:#f9fafb;border-color:#374151;}
+    #bulkCard .bulk-textarea-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,220px);gap:12px;align-items:stretch;}
+    #bulkCard .bulk-side-buttons{display:flex;flex-direction:column;gap:8px;width:100%;}
+    #bulkCard .bulk-side-buttons button{width:100%;}
+    #bulkCard .bulk-progress-wrap{display:flex;flex-direction:column;gap:6px;margin-top:12px;}
+    #bulkCard .bulk-progress{width:100%;height:12px;border-radius:999px;background:var(--border);overflow:hidden;position:relative;}
+    #bulkCard .bulk-progress-fill{position:absolute;top:0;left:0;bottom:0;width:0;background:var(--blue);border-radius:999px;transition:width .3s ease;}
+    body.dark #bulkCard .bulk-progress{background:#2d323c;}
+    body.dark #bulkCard .bulk-progress-fill{background:#2563eb;}
+    #bulkCard .bulk-stats{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;margin-top:10px;}
+    #bulkCard .bulk-table-wrap{margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:360px;overflow-y:auto;background:#fff;}
+    body.dark #bulkCard .bulk-table-wrap{border-color:#2d323c;background:#111827;}
+    #bulkCard table{width:100%;border-collapse:collapse;font-size:13px;}
+    #bulkCard thead{background:rgba(37,99,235,0.08);position:sticky;top:0;z-index:1;}
+    body.dark #bulkCard thead{background:rgba(37,99,235,0.16);}
+    #bulkCard th,#bulkCard td{padding:10px;text-align:right;border-bottom:1px solid var(--border);}
+    body.dark #bulkCard th,body.dark #bulkCard td{border-color:#2d323c;}
+    #bulkCard tbody tr:nth-child(even) td{background:rgba(15,23,42,0.02);}
+    body.dark #bulkCard tbody tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+    #bulkCard .bulk-empty td{text-align:center;color:var(--muted);padding:24px;}
+    #bulkCard .status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;border:1px solid transparent;}
+    #bulkCard .status-withdraw{color:#4338ca;background:rgba(129,140,248,.18);border-color:rgba(129,140,248,.28);}
+    #bulkCard .status-admin{color:#92400e;background:rgba(253,186,116,.2);border-color:rgba(251,191,36,.35);}
+    #bulkCard .status-ok{color:#047857;background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.32);}
+    #bulkCard .status-missing{color:#b91c1c;background:rgba(248,113,113,.18);border-color:rgba(248,113,113,.4);}
+    #bulkCard .status-neutral{color:var(--muted);background:rgba(107,114,128,.18);border-color:rgba(107,114,128,.24);}
+    #bulkCard .chip-dup{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 6px;border-radius:10px;background:rgba(248,113,113,.16);color:#b91c1c;margin-inline-start:6px;}
+    #bulkCard .bulk-side-buttons button.btn-red{background:var(--red);}
+
 /* Mobile-first tweaks */
 html, body { max-width: 100%; overflow-x: hidden; }
 .container { width: 100%; max-width: 940px; margin: 0 auto; padding: 10px; }
@@ -306,6 +344,88 @@ html, body { max-width: 100%; overflow-x: hidden; }
   </div>
 
   </div>
+
+    <!-- أداة البحث الجماعي -->
+    <div class="card span2" id="bulkCard">
+      <div class="bulk-header">
+        <h3>أداة البحث الجماعي</h3>
+        <div id="bulkNote" class="bulk-note">جاهز.</div>
+      </div>
+      <div class="bulk-grid">
+        <div class="bulk-row">
+          <label class="small" style="margin:0;min-width:90px">النطاق</label>
+          <select id="bulkScope" style="flex:1">
+            <option value="agent">الوكيل فقط</option>
+            <option value="both">الإدارة + الوكيل</option>
+            <option value="all">الكل (يشمل الخارجي)</option>
+          </select>
+        </div>
+        <div class="bulk-row" id="bulkSheetRow">
+          <label class="small" style="margin:0;min-width:90px">الورقة الهدف</label>
+          <select id="bulkSheetSelect" style="flex:1"></select>
+          <button id="bulkRefreshSheets" class="btn-ghost" title="تحديث قائمة الأوراق">↻</button>
+        </div>
+        <div class="bulk-row">
+          <input id="bulkNewSheetName" type="text" placeholder="اسم ورقة جديدة" autocomplete="off">
+          <button id="bulkCreateSheetBtn" class="btn-ghost" style="min-width:140px">إنشاء ورقة</button>
+        </div>
+        <div class="bulk-row" id="bulkOptionsRow">
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:120px">
+            <label class="small" style="margin:0">لون التنفيذ</label>
+            <input id="bulkColorInput" type="color" value="#8b5cf6" style="width:44px;height:34px;border:1px solid var(--border);border-radius:8px;padding:0">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:120px">
+            <label class="small" style="margin:0">الخصم %</label>
+            <input id="bulkDiscountInput" type="number" min="0" max="100" value="0" step="1" style="width:120px">
+          </div>
+          <label class="ios-toggle" style="margin-inline-start:auto">
+            <span class="switch-label">تطبيق الخصم مباشرة</span>
+            <input id="bulkApplyDiscount" type="checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="bulk-textarea-grid">
+          <div class="bulk-textarea-wrap">
+            <label class="small" for="bulkIdsInput">IDs (كل سطر أو فاصلة أو مسافة)</label>
+            <textarea id="bulkIdsInput" rows="8" placeholder="الصق هنا عدة IDs..."></textarea>
+          </div>
+          <div class="bulk-side-buttons">
+            <button id="bulkPasteBtn" class="btn-blue">لصق ثم بحث</button>
+            <button id="bulkAnalyzeBtn" class="btn-green">تحليل</button>
+            <button id="bulkExecuteBtn" class="btn-red">تنفيذ الكل</button>
+            <button id="bulkCopyAllBtn" class="btn-ghost">نسخ الكل</button>
+            <button id="bulkCopySalaryBtn" class="btn-ghost">نسخ الرواتب فقط</button>
+            <button id="bulkResetBtn" class="btn-ghost">إعادة تعيين</button>
+          </div>
+        </div>
+      </div>
+      <div class="bulk-progress-wrap">
+        <div class="bulk-progress"><div id="bulkProgressFill" class="bulk-progress-fill"></div></div>
+        <div id="bulkProgressText" class="muted">جاهز.</div>
+      </div>
+      <div class="bulk-stats">
+        <div>الإدخالات: <b id="bulkStatTotal">0</b></div>
+        <div>ملوّن: <b id="bulkStatColored">0</b></div>
+        <div>غير ملوّن: <b id="bulkStatUncolored">0</b></div>
+        <div>مجموع الرواتب: <b id="bulkStatSum">0</b> <span id="bulkSumHint" class="muted" style="display:none">(بعد الخصم)</span></div>
+      </div>
+      <div class="bulk-table-wrap">
+        <table id="bulkResultsTable">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th style="min-width:110px">ID</th>
+              <th style="min-width:140px">الراتب</th>
+              <th style="min-width:160px">الحالة</th>
+              <th style="min-width:90px">ملوّن؟</th>
+            </tr>
+          </thead>
+          <tbody id="bulkResultsBody">
+            <tr class="bulk-empty"><td colspan="5">لا توجد نتائج بعد.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
   <script>
     // عناصر عامة
@@ -1386,6 +1506,392 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
   });
 })();
 </script>
+
+<script>
+(function(){
+  const card = document.getElementById('bulkCard');
+  if (!card) return;
+
+  const scopeSel = document.getElementById('bulkScope');
+  const sheetSel = document.getElementById('bulkSheetSelect');
+  const refreshSheetsBtn = document.getElementById('bulkRefreshSheets');
+  const newSheetInput = document.getElementById('bulkNewSheetName');
+  const createSheetBtn = document.getElementById('bulkCreateSheetBtn');
+  const colorInput = document.getElementById('bulkColorInput');
+  const discountInput = document.getElementById('bulkDiscountInput');
+  const applyDiscountToggle = document.getElementById('bulkApplyDiscount');
+  const idsTextarea = document.getElementById('bulkIdsInput');
+  const pasteBtn = document.getElementById('bulkPasteBtn');
+  const analyzeBtn = document.getElementById('bulkAnalyzeBtn');
+  const executeBtn = document.getElementById('bulkExecuteBtn');
+  const copyAllBtn = document.getElementById('bulkCopyAllBtn');
+  const copySalaryBtn = document.getElementById('bulkCopySalaryBtn');
+  const resetBtn = document.getElementById('bulkResetBtn');
+  const progressFill = document.getElementById('bulkProgressFill');
+  const progressText = document.getElementById('bulkProgressText');
+  const statTotal = document.getElementById('bulkStatTotal');
+  const statColored = document.getElementById('bulkStatColored');
+  const statUncolored = document.getElementById('bulkStatUncolored');
+  const statSum = document.getElementById('bulkStatSum');
+  const sumHint = document.getElementById('bulkSumHint');
+  const note = document.getElementById('bulkNote');
+  const tableBody = document.getElementById('bulkResultsBody');
+
+  const state = {
+    ids: [],
+    results: [],
+    analyzing: false,
+    executing: false,
+    summary: { totalCount:0, coloredCount:0, uncoloredCount:0, totalSalary:0, totalAfterDiscount:0, discountPercent:0 }
+  };
+
+  const fmtNumber = (val) => {
+    const num = Number(val);
+    if (!isFinite(num)) return '0';
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(num);
+  };
+
+  function setNote(txt, isError){
+    note.textContent = txt || '';
+    note.style.color = isError ? '#dc2626' : 'var(--muted)';
+  }
+
+  function setProgress(percent, text){
+    const clamped = Math.max(0, Math.min(100, percent||0));
+    progressFill.style.width = clamped + '%';
+    if (text !== undefined) progressText.textContent = text;
+  }
+
+  function parseIds(txt){
+    if (!txt) return [];
+    const chunks = txt.split(/[\n\r,]+/);
+    const out = [];
+    chunks.forEach(part => {
+      (part || '').split(/\s+/).forEach(token => {
+        const id = String(token || '').trim();
+        if (id) out.push(id);
+      });
+    });
+    return out;
+  }
+
+  function useDiscount(){
+    return !!applyDiscountToggle.checked;
+  }
+
+  function renderStats(){
+    const useDisc = useDiscount();
+    const total = state.results.length;
+    let colored = 0;
+    let sum = 0;
+    state.results.forEach(res => {
+      if (res.coloredAgent || res.coloredAdmin) colored++;
+      const val = useDisc ? res.salaryAfterDiscount : res.salary;
+      sum += Number(val || 0);
+    });
+    statTotal.textContent = total;
+    statColored.textContent = colored;
+    statUncolored.textContent = Math.max(0, total - colored);
+    statSum.textContent = fmtNumber(sum);
+    if (sumHint) sumHint.style.display = useDisc ? '' : 'none';
+  }
+
+  function statusBadge(status, duplicate){
+    const span = document.createElement('span');
+    span.className = 'status-badge';
+    const s = String(status||'').trim();
+    span.textContent = s || '—';
+    if (!s || s === 'غير موجود') span.classList.add('status-missing');
+    else if (s.includes('سحب وكالة') || s.includes('وكالة') || s.includes('راتبين')) span.classList.add('status-withdraw');
+    else if (s.includes('ادارة')) span.classList.add('status-admin');
+    else span.classList.add('status-ok');
+    if (!s) span.classList.remove('status-ok');
+    if (!s) span.classList.add('status-neutral');
+    if (duplicate) {
+      const chip = document.createElement('span');
+      chip.className = 'chip-dup';
+      chip.textContent = duplicate;
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.alignItems = 'center';
+      wrap.appendChild(span);
+      wrap.appendChild(chip);
+      return wrap;
+    }
+    return span;
+  }
+
+  function renderTable(){
+    tableBody.innerHTML = '';
+    if (!state.results.length){
+      const tr = document.createElement('tr');
+      tr.className = 'bulk-empty';
+      const td = document.createElement('td');
+      td.colSpan = 5;
+      td.textContent = 'لا توجد نتائج بعد.';
+      tr.appendChild(td);
+      tableBody.appendChild(tr);
+      renderStats();
+      return;
+    }
+    const useDisc = useDiscount();
+    state.results.forEach((res, idx) => {
+      const tr = document.createElement('tr');
+      const idxTd = document.createElement('td');
+      idxTd.textContent = String(idx+1);
+      tr.appendChild(idxTd);
+
+      const idTd = document.createElement('td');
+      idTd.textContent = res.id || '—';
+      tr.appendChild(idTd);
+
+      const salTd = document.createElement('td');
+      const val = useDisc ? res.salaryAfterDiscount : res.salary;
+      salTd.textContent = fmtNumber(val);
+      tr.appendChild(salTd);
+
+      const statusTd = document.createElement('td');
+      statusTd.appendChild(statusBadge(res.status, res.duplicateLabel));
+      tr.appendChild(statusTd);
+
+      const coloredTd = document.createElement('td');
+      coloredTd.textContent = (res.coloredAgent || res.coloredAdmin) ? '✓' : '—';
+      tr.appendChild(coloredTd);
+
+      tableBody.appendChild(tr);
+    });
+    renderStats();
+  }
+
+  function setButtons(){
+    const hasResults = state.results.length > 0;
+    analyzeBtn.disabled = state.analyzing;
+    pasteBtn.disabled = state.analyzing || state.executing;
+    executeBtn.disabled = !hasResults || state.analyzing || state.executing;
+    copyAllBtn.disabled = !hasResults;
+    copySalaryBtn.disabled = !hasResults;
+    resetBtn.disabled = state.analyzing || state.executing || (!hasResults && !idsTextarea.value.trim());
+  }
+
+  function handleError(msg){
+    setProgress(0);
+    setNote(msg || 'حدث خطأ.', true);
+    state.analyzing = false;
+    state.executing = false;
+    setButtons();
+  }
+
+  function loadSheets(preselect){
+    sheetSel.innerHTML = '<option value="">… جارٍ التحميل</option>';
+    google.script.run
+      .withSuccessHandler(list => {
+        sheetSel.innerHTML = '';
+        (list || []).forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = opt.textContent = name;
+          sheetSel.appendChild(opt);
+        });
+        if (preselect && list && list.indexOf(preselect) !== -1){
+          sheetSel.value = preselect;
+        }
+      })
+      .withFailureHandler(err => {
+        sheetSel.innerHTML = '';
+        const opt = document.createElement('option');
+        opt.textContent = '⚠️ فشل تحميل الأوراق';
+        sheetSel.appendChild(opt);
+        handleError('⚠️ فشل تحميل قائمة الأوراق: ' + (err?.message || '')); 
+      })
+      .listSheets();
+  }
+
+  function doAnalyze(ids){
+    state.analyzing = true;
+    setButtons();
+    setProgress(8, 'جارٍ التحليل…');
+    setNote('جارٍ التحليل…');
+    google.script.run
+      .withSuccessHandler(res => {
+        state.analyzing = false;
+        if (!res || res.ok === false){
+          handleError(res && res.message ? res.message : '⚠️ فشل التحليل.');
+          return;
+        }
+        state.ids = ids.slice();
+        state.results = Array.isArray(res.results) ? res.results.map(r => Object.assign({}, r)) : [];
+        state.summary = res.summary || state.summary;
+        setProgress(100, 'اكتمل التحليل.');
+        setNote('✅ تم التحليل.');
+        renderTable();
+        setButtons();
+      })
+      .withFailureHandler(err => {
+        state.analyzing = false;
+        handleError('⚠️ فشل التحليل: ' + (err?.message || '')); 
+      })
+      .bulkSearchExact(ids, { percent: Number(discountInput.value || 0), scope: scopeSel.value });
+  }
+
+  function startAnalyze(){
+    if (state.executing) return;
+    const ids = parseIds(idsTextarea.value);
+    if (!ids.length){
+      handleError('⚠️ أدخل IDs أولاً.');
+      return;
+    }
+    doAnalyze(ids);
+  }
+
+  async function doPasteAndAnalyze(){
+    if (state.analyzing || state.executing) return;
+    try{
+      const txt = await navigator.clipboard.readText();
+      if (txt && txt.trim()){
+        idsTextarea.value = txt.trim();
+        startAnalyze();
+        return;
+      }
+    }catch(_){}
+    const manual = prompt('ألصق IDs هنا:');
+    if (manual && manual.trim()){
+      idsTextarea.value = manual.trim();
+      startAnalyze();
+    }
+  }
+
+  function doExecute(){
+    if (!state.results.length || state.analyzing || state.executing) return;
+    state.executing = true;
+    setButtons();
+    setProgress(12, 'جارٍ التنفيذ…');
+    setNote('جارٍ التنفيذ…');
+    const payload = {
+      sheetName: sheetSel.value || '',
+      adminColor: colorInput.value || '#fde68a',
+      withdrawColor: colorInput.value || '#ddd6fe',
+      targetMode: scopeSel.value === 'agent' ? 'agent' : 'both',
+      scope: scopeSel.value
+    };
+    google.script.run
+      .withSuccessHandler(res => {
+        state.executing = false;
+        if (!res || res.ok === false){
+          handleError(res && res.message ? res.message : '⚠️ فشل التنفيذ.');
+          return;
+        }
+        const details = Array.isArray(res.details) ? res.details : [];
+        for (let i=0;i<state.results.length;i++){
+          const cur = state.results[i];
+          const det = details[i];
+          if (!det) continue;
+          cur.status = det.status || cur.status;
+          if (typeof det.coloredAgent === 'boolean') cur.coloredAgent = det.coloredAgent;
+          if (typeof det.coloredAdmin === 'boolean') cur.coloredAdmin = det.coloredAdmin;
+        }
+        setProgress(100, 'اكتمل التنفيذ.');
+        const processed = res.summary?.processed || state.results.length;
+        setNote(`✅ تم تنفيذ ${processed} إدخال.`);
+        renderTable();
+        setButtons();
+      })
+      .withFailureHandler(err => {
+        state.executing = false;
+        handleError('⚠️ فشل التنفيذ: ' + (err?.message || ''));
+      })
+      .bulkExecuteExact(state.ids.slice(), payload);
+  }
+
+  async function copyText(lines){
+    const txt = lines.join('\n');
+    try{
+      await navigator.clipboard.writeText(txt);
+      setNote('📋 تم النسخ.', false);
+    }catch(_){
+      const helper = document.createElement('textarea');
+      helper.value = txt;
+      helper.style.position = 'fixed';
+      helper.style.opacity = '0';
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand('copy');
+      document.body.removeChild(helper);
+      setNote('📋 تم النسخ.', false);
+    }
+  }
+
+  function doCopyAll(){
+    if (!state.results.length) return;
+    const useDisc = useDiscount();
+    const lines = state.results.map(res => {
+      const sal = useDisc ? res.salaryAfterDiscount : res.salary;
+      const status = res.status || '';
+      const dup = res.duplicateLabel ? ` ${res.duplicateLabel}` : '';
+      return `${res.id}\t${roundToTwo(sal)}\t${status}${dup}`;
+    });
+    copyText(lines);
+  }
+
+  function doCopySalaries(){
+    if (!state.results.length) return;
+    const useDisc = useDiscount();
+    const lines = state.results.map(res => roundToTwo(useDisc ? res.salaryAfterDiscount : res.salary));
+    copyText(lines);
+  }
+
+  function roundToTwo(val){
+    const num = Number(val||0);
+    return num.toFixed(2);
+  }
+
+  function resetAll(){
+    state.ids = [];
+    state.results = [];
+    idsTextarea.value = '';
+    setProgress(0, 'جاهز.');
+    setNote('تمت إعادة التعيين.');
+    renderTable();
+    setButtons();
+  }
+
+  refreshSheetsBtn.addEventListener('click', ()=> loadSheets(sheetSel.value));
+  createSheetBtn.addEventListener('click', ()=>{
+    const name = (newSheetInput.value || '').trim();
+    if (!name){
+      handleError('⚠️ اكتب اسم ورقة جديدة.');
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res || res.ok === false){
+          handleError(res && res.message ? res.message : '⚠️ فشل إنشاء الورقة.');
+          return;
+        }
+        setNote(res.message || 'تم إنشاء الورقة.', false);
+        newSheetInput.value = '';
+        loadSheets(name);
+      })
+      .withFailureHandler(err => handleError('⚠️ خطأ بإنشاء الورقة: ' + (err?.message || '')))
+      .createSheetIfMissing(name);
+  });
+
+  pasteBtn.addEventListener('click', doPasteAndAnalyze);
+  analyzeBtn.addEventListener('click', startAnalyze);
+  executeBtn.addEventListener('click', doExecute);
+  copyAllBtn.addEventListener('click', doCopyAll);
+  copySalaryBtn.addEventListener('click', doCopySalaries);
+  resetBtn.addEventListener('click', resetAll);
+  applyDiscountToggle.addEventListener('change', ()=>{ renderTable(); setNote(''); });
+  scopeSel.addEventListener('change', ()=> setNote('ℹ️ غيّرت النطاق، أعد التحليل لتحديث النتائج.', false));
+  idsTextarea.addEventListener('input', setButtons);
+  discountInput.addEventListener('change', ()=> setNote('ℹ️ تم تعديل الخصم، أعد التحليل لتحديث الأرقام.', false));
+
+  loadSheets();
+  renderTable();
+  setButtons();
+  setProgress(0, 'جاهز.');
+})();
+</script>
+
 <?!= HtmlService.createHtmlOutputFromFile('AIClient').getContent(); ?>
 </script>
 <!-- ✅ ترتيب موحّد + تثبيت الأدوات السريعة + تنسيق صف البحث -->
@@ -1400,7 +1906,8 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
         "search"
         "exec"
         "person"
-        "quick";
+        "quick"
+        "bulk";
       gap:14px !important;
     }
 
@@ -1411,6 +1918,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
     #execCard   { grid-area: exec    !important; }
     #personCard { grid-area: person  !important; }
     #quickTools { grid-area: quick   !important; }
+    #bulkCard   { grid-area: bulk    !important; }
 
     /* خفّف الكروت على الموبايل */
     .card{
@@ -1437,11 +1945,15 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
       font-size:16px !important;
     }
     #pasteSearchBtn{
-      height:44px !important; 
-      min-width:130px !important; 
-      white-space:nowrap !important; 
+      height:44px !important;
+      min-width:130px !important;
+      white-space:nowrap !important;
       font-weight:700 !important;
     }
+    #bulkCard .bulk-textarea-grid{
+      grid-template-columns:minmax(0,1fr) minmax(150px,210px) !important;
+    }
+    #bulkCard .bulk-table-wrap{max-height:420px;}
   }
 </style>
 
