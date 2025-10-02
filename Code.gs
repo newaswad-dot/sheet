@@ -9,17 +9,35 @@ function getConfig_() {
   // الصف2:
   // A=AGENT_SHEET_ID, B=AGENT_SHEET_NAME, C=ADMIN_SHEET_ID, D=ADMIN_SHEET_NAME
   // E=DATA1_ID, F=DATA1_NAME, G=DATA2_ID, H=DATA2_NAME  (اختياري)
-  const row = sh.getRange(2, 1, 1, 8).getValues()[0];
+  // I=EXTERNAL_SPREADSHEET_ID, J=EXTERNAL_SHEET_NAME (اختياري)
+  const row = sh.getRange(2, 1, 1, 10).getDisplayValues()[0];
+
+  const parseId = function(val) {
+    const raw = String(val || "").trim();
+    if (!raw) return "";
+    try {
+      if (typeof extractSpreadsheetIdFromUrl_ === 'function') {
+        const extracted = extractSpreadsheetIdFromUrl_(raw);
+        if (extracted) return extracted;
+      }
+    } catch (_){ /* تجاهل أي خطأ في الدالة المساعدة */ }
+    const match = raw.match(/[-\w]{25,}/);
+    return match ? match[0] : raw;
+  };
+
   const cfg = {
-    AGENT_SHEET_ID:   String(row[0] || "").trim(),
+    AGENT_SHEET_ID:   parseId(row[0]),
     AGENT_SHEET_NAME: String(row[1] || "").trim() || "SHEET",
-    ADMIN_SHEET_ID:   String(row[2] || "").trim(),
+    ADMIN_SHEET_ID:   parseId(row[2]),
     ADMIN_SHEET_NAME: String(row[3] || "").trim() || "Sheet1",
 
-    DATA1_ID:         String(row[4] || "").trim(),
+    DATA1_ID:         parseId(row[4]),
     DATA1_NAME:       String(row[5] || "").trim() || "معلومات السلطان",
-    DATA2_ID:         String(row[6] || "").trim(),
+    DATA2_ID:         parseId(row[6]),
     DATA2_NAME:       String(row[7] || "").trim() || "معلومات الفرعيين",
+
+    EXTERNAL_SPREADSHEET_ID: parseId(row[8]),
+    EXTERNAL_SHEET_NAME:     String(row[9] || "").trim()
   };
   const missing = [];
   if (!cfg.AGENT_SHEET_ID)   missing.push("AGENT_SHEET_ID");
@@ -145,7 +163,24 @@ function applySalaryCorrection_(val, corrMap) {
  *****************************/
 function openSheetFlex_(idMaybe, nameMaybe) {
   if (idMaybe) {
-    const ss = SpreadsheetApp.openById(idMaybe);
+    const realId = (function(val){
+      const raw = String(val || '').trim();
+      if (!raw) return '';
+      try {
+        if (typeof extractSpreadsheetIdFromUrl_ === 'function') {
+          const extracted = extractSpreadsheetIdFromUrl_(raw);
+          if (extracted) return extracted;
+        }
+      } catch (_){ }
+      const match = raw.match(/[-\w]{25,}/);
+      return match ? match[0] : raw;
+    })(idMaybe);
+    if (!realId) {
+      const cur = SpreadsheetApp.getActiveSpreadsheet();
+      if (nameMaybe) return cur.getSheetByName(nameMaybe);
+      return null;
+    }
+    const ss = SpreadsheetApp.openById(realId);
     if (nameMaybe) {
       const sh = ss.getSheetByName(nameMaybe);
       if (sh) return sh;
@@ -1308,9 +1343,52 @@ function getExternalSheetLinksFromSettings() {
     return { adminUrl:'', agentUrl:'' };
   }
   const vals = sh.getRange(2,9,1,2).getDisplayValues()[0];
+  const rawA = String(vals[0] || '').trim();
+  const rawB = String(vals[1] || '').trim();
+
+  const looksLegacy = /https?:/i.test(rawA) || /https?:/i.test(rawB) || rawA.indexOf('|') !== -1 || rawB.indexOf('|') !== -1;
+  if (looksLegacy) {
+    return { adminUrl: rawA, agentUrl: rawB };
+  }
+
+  const parseId = function(val){
+    const raw = String(val || '').trim();
+    if (!raw) return '';
+    try {
+      if (typeof extractSpreadsheetIdFromUrl_ === 'function') {
+        const extracted = extractSpreadsheetIdFromUrl_(raw);
+        if (extracted) return extracted;
+      }
+    } catch (_){ }
+    const m = raw.match(/[-\w]{25,}/);
+    return m ? m[0] : raw;
+  };
+
+  const extId = parseId(rawA);
+  if (!extId) {
+    return { adminUrl:'', agentUrl:'' };
+  }
+
+  let agentSheet = rawB;
+  let adminSheet = '';
+
+  if (agentSheet && /[;,\n\r]/.test(agentSheet)) {
+    const parts = agentSheet.split(/[;,\n\r]+/);
+    agentSheet = String(parts[0] || '').trim();
+    adminSheet = String(parts[1] || '').trim();
+  }
+
+  const buildLink = function(sheetName){
+    if (!extId) return '';
+    const name = String(sheetName || '').trim();
+    return name ? (extId + '|' + name) : extId;
+  };
+
+  if (!adminSheet) adminSheet = agentSheet;
+
   return {
-    adminUrl: String(vals[0] || '').trim(),
-    agentUrl: String(vals[1] || '').trim()
+    adminUrl: buildLink(adminSheet),
+    agentUrl: buildLink(agentSheet)
   };
 }
 
