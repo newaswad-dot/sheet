@@ -335,7 +335,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
         <button id="qtRefreshCnt" class="btn-ghost" title="تحديث العدّاد">↻ تحديث</button>
       </div>
     </div>
-  </div>
 
   </div>
 
@@ -370,11 +369,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
           <label class="small" for="bulkDiscount">نسبة خصم (%)</label>
           <input id="bulkDiscount" type="number" min="0" max="100" step="1" value="0">
         </div>
-        <label class="ios-toggle" style="flex:1 1 200px;justify-content:flex-start">
-          <span class="switch-label">تطبيق الخصم مباشرة</span>
-          <input id="bulkApplyDiscount" type="checkbox">
-          <span class="slider"></span>
-        </label>
+
       </div>
       <div class="bulk-section">
         <label class="small" for="bulkIds">ألصق عدة IDs</label>
@@ -1413,34 +1408,38 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
     });
   </script>
   <style>
-@media (max-width: 1059px){
-  #quickTools{
-    grid-column: 1 / -1;
-    grid-row: 999;
-    margin-top: 12px;
+  @media (max-width: 1059px){
+    #quickTools{
+      grid-column: 1 / -1;
+      grid-row: 999;
+      margin-top: 12px;
+    }
   }
-}
-</style>
-<script>
-(function(){
-  function placeQT(){
-    var qt = document.getElementById('quickTools');
-    var cont = document.querySelector('.container');
-    if(!qt || !cont) return;
-    var w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
-    if (w <= 1059) cont.appendChild(qt);
-  }
-  window.addEventListener('load', placeQT);
-  window.addEventListener('resize', function(){
-    clearTimeout(window.__qt_fix);
-    window.__qt_fix = setTimeout(placeQT, 150);
-  });
-})();
-</script>
-<style>
-/* تحسين تنسيق قسم التنفيذ على الشاشات الصغيرة */
-@media (max-width: 640px){
-  /* خلي صفوف القسم قابلة للّف */
+  </style>
+  <script>
+  (function(){
+    function placeQT(){
+      var qt = document.getElementById('quickTools');
+      var bulk = document.getElementById('bulkCard');
+      var cont = document.querySelector('.container');
+      if (!cont) return;
+      var w = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth);
+      if (w <= 1059){
+        if (qt) cont.appendChild(qt);
+        if (bulk) cont.appendChild(bulk);
+      }
+    }
+    window.addEventListener('load', placeQT);
+    window.addEventListener('resize', function(){
+      clearTimeout(window.__qt_fix);
+      window.__qt_fix = setTimeout(placeQT, 150);
+    });
+  })();
+  </script>
+  <style>
+  /* تحسين تنسيق قسم التنفيذ على الشاشات الصغيرة */
+  @media (max-width: 640px){
+    /* خلي صفوف القسم قابلة للّف */
   #advCard .row{ flex-wrap: wrap !important; }
 
   /* صف (الهدف + التنفيذ + تحديث) */
@@ -1917,7 +1916,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
 <script>
 /* ✅ JS داعم: يضمن وضع #quickTools بعد #personCard (إن كان ظاهر) وإلا بعد #execCard + يثبت زر اللصق بجانب الحقل */
 (function(){
-  var IDS = { results:'resultsBox', search:'searchCard', exec:'execCard', person:'personCard', quick:'quickTools' };
+  var IDS = { results:'resultsBox', search:'searchCard', exec:'execCard', person:'personCard', quick:'quickTools', bulk:'bulkCard' };
 
   function $(id){ return document.getElementById(id); }
   function visible(el){
@@ -1927,7 +1926,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
   }
 
   function placeQuickTools(){
-    var qt = $(IDS.quick), exec = $(IDS.exec), person = $(IDS.person);
+    var qt = $(IDS.quick), exec = $(IDS.exec), person = $(IDS.person), bulk = $(IDS.bulk);
     if (!qt || !exec) return;
 
     var anchor = (person && visible(person)) ? person : exec;
@@ -1936,6 +1935,13 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
     // انقل quickTools لنفس الأب ثم ضعه بعد الـ anchor
     if (qt.parentNode !== parent) parent.appendChild(qt);
     if (qt.previousElementSibling !== anchor) parent.insertBefore(qt, anchor.nextSibling);
+
+    if (bulk) {
+      if (bulk.parentNode !== parent) parent.appendChild(bulk);
+      if (bulk.previousElementSibling !== qt) parent.insertBefore(bulk, qt.nextSibling);
+      bulk.style.maxWidth = '100%';
+      bulk.style.margin = '0 auto';
+    }
 
     // ضبط قياسات لطيفة
     qt.style.maxWidth = '780px';
