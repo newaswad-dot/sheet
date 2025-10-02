@@ -12,7 +12,19 @@
       --red:#dc2626; --redH:#b91c1c; --amber:#f59e0b; --violet:#8b5cf6;
     }
     *{box-sizing:border-box}
-    body{margin:0; padding:14px; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    body{
+      margin:0;
+      padding:14px;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      min-height:100vh;
+    }
+
+    body > .container{ width:100%; }
 
     .container{max-width:1100px; margin:0 auto; display:grid; gap:12px}
     @media(min-width:1060px){
@@ -227,14 +239,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
         </div>
 
         <div class="toggle-chip">
-          <span class="switch-label">الخصم لحظيًا</span>
-          <label class="ios-toggle">
-            <input id="applyDiscountToMessage" type="checkbox">
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="toggle-chip">
           <span class="switch-label">تصحيح الراتب</span>
           <label class="ios-toggle">
             <input id="enableSalaryCorrection" type="checkbox">
@@ -378,11 +382,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
             <label class="small" style="margin:0">الخصم %</label>
             <input id="bulkDiscountInput" type="number" min="0" max="100" value="0" step="1" style="width:120px">
           </div>
-          <label class="ios-toggle" style="margin-inline-start:auto">
-            <span class="switch-label">تطبيق الخصم مباشرة</span>
-            <input id="bulkApplyDiscount" type="checkbox">
-            <span class="slider"></span>
-          </label>
         </div>
         <div class="bulk-textarea-grid">
           <div class="bulk-textarea-wrap">
@@ -458,7 +457,6 @@ const advCard  = document.getElementById('advCard');
     const advRunBtn     = document.getElementById('advRunBtn');
 
     const discountInput = document.getElementById('discountInput');
-    const applyDiscountToMessage = document.getElementById('applyDiscountToMessage');
     const enableSalaryCorrection = document.getElementById('enableSalaryCorrection');
 
     // بطاقة الشخص
@@ -758,7 +756,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
             return;
           }
           lastProfileIds = (card.ids||[]).map(x=> String(x.id));
-          const txt = buildMessageText(card, applyDiscountToMessage.checked, localMap);
+          const txt = buildMessageText(card, true, localMap);
           personMsg.value = txt;
           personNote.textContent = `تم — عدد IDs: ${lastProfileIds.length}`;
           flash(personCardEl, 'flash-blue');
@@ -791,7 +789,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
         google.script.run
           .withSuccessHandler(card=>{
             if(card && card.ok){
-              personMsg.value = buildMessageText(card, !!applyDiscountToMessage.checked, localMap);
+              personMsg.value = buildMessageText(card, true, localMap);
               personNote.textContent = `تم — عدد IDs: ${(card.ids||[]).length}`;
             }
           })
@@ -1027,7 +1025,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
           if (lastResult) renderResult(lastResult);
           const pct = Math.max(0, Math.min(100, Number(discountInput.value)||0));
           refreshCountsLive(pct);
-          if (applyDiscountToMessage?.checked && lastBaseId) rebuildPersonCardUsingLast();
+          if (lastBaseId) rebuildPersonCardUsingLast();
         }, 120);
       });
     })();
@@ -1519,7 +1517,6 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
   const createSheetBtn = document.getElementById('bulkCreateSheetBtn');
   const colorInput = document.getElementById('bulkColorInput');
   const discountInput = document.getElementById('bulkDiscountInput');
-  const applyDiscountToggle = document.getElementById('bulkApplyDiscount');
   const idsTextarea = document.getElementById('bulkIdsInput');
   const pasteBtn = document.getElementById('bulkPasteBtn');
   const analyzeBtn = document.getElementById('bulkAnalyzeBtn');
@@ -1575,25 +1572,31 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
     return out;
   }
 
-  function useDiscount(){
-    return !!applyDiscountToggle.checked;
+  function currentDiscountPercent(){
+    return Math.max(0, Math.min(100, Number(discountInput.value || 0)));
+  }
+
+  function computeDiscountedSalary(baseValue){
+    const pct = currentDiscountPercent();
+    const num = Number(baseValue || 0);
+    if (!pct) return num;
+    return num * (1 - pct / 100);
   }
 
   function renderStats(){
-    const useDisc = useDiscount();
+    const pct = currentDiscountPercent();
     const total = state.results.length;
     let colored = 0;
     let sum = 0;
     state.results.forEach(res => {
       if (res.coloredAgent || res.coloredAdmin) colored++;
-      const val = useDisc ? res.salaryAfterDiscount : res.salary;
-      sum += Number(val || 0);
+      sum += computeDiscountedSalary(res.salary);
     });
     statTotal.textContent = total;
     statColored.textContent = colored;
     statUncolored.textContent = Math.max(0, total - colored);
     statSum.textContent = fmtNumber(sum);
-    if (sumHint) sumHint.style.display = useDisc ? '' : 'none';
+    if (sumHint) sumHint.style.display = pct > 0 ? '' : 'none';
   }
 
   function statusBadge(status, duplicate){
@@ -1634,7 +1637,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
       renderStats();
       return;
     }
-    const useDisc = useDiscount();
+    const pct = currentDiscountPercent();
     state.results.forEach((res, idx) => {
       const tr = document.createElement('tr');
       const idxTd = document.createElement('td');
@@ -1646,8 +1649,13 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
       tr.appendChild(idTd);
 
       const salTd = document.createElement('td');
-      const val = useDisc ? res.salaryAfterDiscount : res.salary;
-      salTd.textContent = fmtNumber(val);
+      const baseSalary = Number(res.salary || 0);
+      const discounted = computeDiscountedSalary(baseSalary);
+      salTd.textContent = fmtNumber(discounted);
+      if (pct > 0) {
+        const diff = baseSalary - discounted;
+        salTd.title = `الأصلي: ${fmtNumber(baseSalary)} | الخصم: ${fmtNumber(diff)}`;
+      }
       tr.appendChild(salTd);
 
       const statusTd = document.createElement('td');
@@ -1821,9 +1829,8 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
 
   function doCopyAll(){
     if (!state.results.length) return;
-    const useDisc = useDiscount();
     const lines = state.results.map(res => {
-      const sal = useDisc ? res.salaryAfterDiscount : res.salary;
+      const sal = computeDiscountedSalary(res.salary);
       const status = res.status || '';
       const dup = res.duplicateLabel ? ` ${res.duplicateLabel}` : '';
       return `${res.id}\t${roundToTwo(sal)}\t${status}${dup}`;
@@ -1833,8 +1840,7 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
 
   function doCopySalaries(){
     if (!state.results.length) return;
-    const useDisc = useDiscount();
-    const lines = state.results.map(res => roundToTwo(useDisc ? res.salaryAfterDiscount : res.salary));
+    const lines = state.results.map(res => roundToTwo(computeDiscountedSalary(res.salary)));
     copyText(lines);
   }
 
@@ -1880,10 +1886,10 @@ if (res.status === 'error'){ applyBadges('خطأ', null, false); amountText.text
   copyAllBtn.addEventListener('click', doCopyAll);
   copySalaryBtn.addEventListener('click', doCopySalaries);
   resetBtn.addEventListener('click', resetAll);
-  applyDiscountToggle.addEventListener('change', ()=>{ renderTable(); setNote(''); });
   scopeSel.addEventListener('change', ()=> setNote('ℹ️ غيّرت النطاق، أعد التحليل لتحديث النتائج.', false));
   idsTextarea.addEventListener('input', setButtons);
-  discountInput.addEventListener('change', ()=> setNote('ℹ️ تم تعديل الخصم، أعد التحليل لتحديث الأرقام.', false));
+  discountInput.addEventListener('input', ()=>{ renderTable(); setNote(''); });
+  discountInput.addEventListener('change', ()=> setNote('ℹ️ تم تحديث قيم الخصم.', false));
 
   loadSheets();
   renderTable();
